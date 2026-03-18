@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Query
 from typing import Optional
+from fastapi import Header, Cookie, Response  # ✅ 추가: Header, Cookie, Response import
 from app.models.item import Todo, TodoCreate, TodoUpdate
 
 router = APIRouter()
@@ -13,8 +14,8 @@ next_id = 1
 @router.get(
     "/todos",
     response_model=list[Todo],
-    status_code=status.HTTP_200_OK,  # ✅ 추가: 상태 코드 명시
-    responses={                      # ✅ 추가: Swagger에 예외 응답 문서화
+    status_code=status.HTTP_200_OK,
+    responses={
         200: {"description": "전체 Todo 목록 조회 성공"},
         400: {"description": "잘못된 정렬 값 요청"}
     }
@@ -46,7 +47,6 @@ def get_todos(
     if done is not None:
         result = [todo for todo in result if todo.done == done]
     
-    # ✅ 추가: 예외 처리 - 잘못된 정렬 값 검사
     if sort is not None and sort not in ["asc", "desc"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -68,8 +68,8 @@ def get_todos(
 @router.get(
     "/todos/{todo_id}",
     response_model=Todo,
-    status_code=status.HTTP_200_OK,  # ✅ 추가: 상태 코드 명시
-    responses={                      # ✅ 추가: Swagger에 예외 응답 문서화
+    status_code=status.HTTP_200_OK,
+    responses={
         200: {"description": "Todo 상세 조회 성공"},
         404: {"description": "해당 Todo를 찾을 수 없음"}
     }
@@ -79,7 +79,7 @@ def get_todo(todo_id: int):
         if todo.id == todo_id:
             return todo
     raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,  # ✅ 추가: status 상수 사용
+        status_code=status.HTTP_404_NOT_FOUND,
         detail="해당 할 일이 없습니다."
     )
 
@@ -89,7 +89,7 @@ def get_todo(todo_id: int):
     "/todos",
     response_model=Todo,
     status_code=status.HTTP_201_CREATED,
-    responses={                      # ✅ 추가: Swagger에 예외 응답 문서화
+    responses={
         201: {"description": "Todo 생성 성공"},
         400: {"description": "중복된 제목 또는 잘못된 요청"}
     }
@@ -97,7 +97,6 @@ def get_todo(todo_id: int):
 def create_todo(todo_data: TodoCreate):
     global next_id
 
-    # ✅ 추가: 예외 처리 - 같은 제목의 Todo 중복 생성 방지
     for todo in todos:
         if todo.title == todo_data.title:
             raise HTTPException(
@@ -120,15 +119,14 @@ def create_todo(todo_data: TodoCreate):
 @router.put(
     "/todos/{todo_id}",
     response_model=Todo,
-    status_code=status.HTTP_200_OK,  # ✅ 추가: 상태 코드 명시
-    responses={                      # ✅ 추가: Swagger에 예외 응답 문서화
+    status_code=status.HTTP_200_OK,
+    responses={
         200: {"description": "Todo 수정 성공"},
         400: {"description": "수정할 데이터가 없거나 잘못된 요청"},
         404: {"description": "수정할 Todo를 찾을 수 없음"}
     }
 )
 def update_todo(todo_id: int, todo_data: TodoUpdate):
-    # ✅ 추가: 예외 처리 - 아무 값도 안 보냈을 때
     update_data = todo_data.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(
@@ -145,7 +143,7 @@ def update_todo(todo_id: int, todo_data: TodoUpdate):
             return updated_todo
 
     raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,  # ✅ 추가: status 상수 사용
+        status_code=status.HTTP_404_NOT_FOUND,
         detail="수정할 할 일이 없습니다."
     )
 
@@ -153,8 +151,8 @@ def update_todo(todo_id: int, todo_data: TodoUpdate):
 # 삭제
 @router.delete(
     "/todos/{todo_id}",
-    status_code=status.HTTP_200_OK,  # ✅ 추가: 상태 코드 명시
-    responses={                      # ✅ 추가: Swagger에 예외 응답 문서화
+    status_code=status.HTTP_200_OK,
+    responses={
         200: {"description": "Todo 삭제 성공"},
         404: {"description": "삭제할 Todo를 찾을 수 없음"}
     }
@@ -169,6 +167,42 @@ def delete_todo(todo_id: int):
             }
 
     raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,  # ✅ 추가: status 상수 사용
+        status_code=status.HTTP_404_NOT_FOUND,
         detail="삭제할 할 일이 없습니다."
     )
+
+# ✅ 추가: Header 읽기 예제
+@router.get("/headers-demo")
+def read_headers(
+    user_agent: Optional[str] = Header(None),   # 요청 헤더의 User-Agent 읽기
+    x_token: Optional[str] = Header(None)       # 커스텀 헤더 X-Token 읽기
+):
+    return {
+        "message": "요청 헤더를 읽었습니다.",
+        "user_agent": user_agent,
+        "x_token": x_token
+    }
+
+
+# ✅ 추가: Cookie 저장 예제
+@router.post("/cookies-demo")
+def create_cookie(response: Response):
+    response.set_cookie(
+        key="visit_user",
+        value="fastapi-student",
+        httponly=True  # 자바스크립트에서 직접 접근 어렵게 설정
+    )
+    return {
+        "message": "쿠키가 저장되었습니다.",
+        "cookie_name": "visit_user",
+        "cookie_value": "fastapi-student"
+    }
+
+
+# ✅ 추가: Cookie 읽기 예제
+@router.get("/cookies-demo")
+def read_cookie(visit_user: Optional[str] = Cookie(None)):
+    return {
+        "message": "쿠키를 읽었습니다.",
+        "visit_user": visit_user
+    }

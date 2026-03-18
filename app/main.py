@@ -1,12 +1,22 @@
-from fastapi import FastAPI, Request  # ✅ 추가: Request import
-from fastapi.responses import JSONResponse  # ✅ 추가: JSONResponse import
-from fastapi.exceptions import RequestValidationError  # ✅ 추가: 검증 예외 import
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware  # ✅ 추가: CORS 미들웨어 import
 from app.routes.item import router as item_router
 
 app = FastAPI(
     title="FastAPI Todo API",
-    description="Pydantic 검증과 Path / Query Parameter가 포함된 Todo CRUD API",  # ✅ 수정: 설명 문구 변경
-    version="1.2.0"  # ✅ 수정: 버전 변경
+    description="Pydantic 검증과 Path / Query Parameter가 포함된 Todo CRUD API",
+    version="1.3.0"  # ✅ 추가: 버전 수정
+)
+
+# ✅ 추가: CORS 설정
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],          # 학습용: 모든 출처 허용
+    allow_credentials=True,       # 쿠키/인증정보 포함 허용
+    allow_methods=["*"],          # 모든 HTTP 메서드 허용
+    allow_headers=["*"],          # 모든 헤더 허용
 )
 
 # 라우터 등록
@@ -17,7 +27,7 @@ def home():
     return {"message": "FastAPI Todo API 실행 중"}
 
 
-# ✅ 추가: 요청 데이터 검증 실패 시 에러 메시지 통일
+# 요청 데이터 검증 실패 시 에러 메시지 통일
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
