@@ -1,16 +1,17 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware  # ✅ 추가: CORS 미들웨어 import
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles   # ✅ 추가: static 파일 연결
+from fastapi.templating import Jinja2Templates  # ✅ 추가: Jinja2 템플릿
 from app.routes.item import router as item_router
 
 app = FastAPI(
     title="FastAPI Todo API",
     description="Pydantic 검증과 Path / Query Parameter가 포함된 Todo CRUD API",
-    version="1.3.0"  # ✅ 추가: 버전 수정
+    version="1.4.0"  # ✅ 추가: 버전 수정
 )
 
-# ✅ 추가: CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],          # 학습용: 모든 출처 허용
@@ -22,9 +23,24 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(item_router)
 
+# ✅ 추가: static 폴더 연결
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# ✅ 추가: 템플릿 폴더 설정
+templates = Jinja2Templates(directory="app/templates")
+
+# ✅ 추가: HTML 페이지 렌더링
 @app.get("/")
-def home():
-    return {"message": "FastAPI Todo API 실행 중"}
+def todo_page(request: Request):
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request}
+    )
+
+# ✅ 삭제: HTML 페이지 렌더링을 위해
+# @app.get("/")
+# def home():
+    # return {"message": "FastAPI Todo API 실행 중"}
 
 
 # 요청 데이터 검증 실패 시 에러 메시지 통일

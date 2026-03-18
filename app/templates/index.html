@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastAPI Todo</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="todo-container">
+        <h1>Todo List</h1>
+
+        <!-- 생성 영역 -->
+        <div class="todo-input-box">
+            <input type="text" id="create-title" placeholder="할 일을 입력하세요">
+            <button onclick="createTodo()">추가</button>
+        </div>
+
+        <!-- 검색 / 필터 / 정렬 영역 -->
+        <div class="search-filter-box">
+            <input type="text" id="search-keyword" placeholder="검색어를 입력하세요">
+
+            <select id="filter-done">
+                <option value="">전체 상태</option>
+                <option value="true">완료</option>
+                <option value="false">미완료</option>
+            </select>
+
+            <select id="sort-order">
+                <option value="">기본 정렬</option>
+                <option value="asc">오름차순</option>
+                <option value="desc">내림차순</option>
+            </select>
+
+            <button class="search-btn" onclick="searchTodos()">검색</button>
+            <button class="reset-btn" onclick="resetSearch()">초기화</button>
+        </div>
+
+        <!-- 메시지 -->
+        <div id="message-box"></div>
+
+        <!-- 목록 -->
+        <ul id="todo-list" class="todo-list"></ul>
+    </div>
+
+    <script>
+        function showMessage(message, isError = false) {
+            const box = document.getElementById("message-box");
+            box.innerHTML = `<p class="${isError ? 'error' : 'success'}">${message}</p>`;
+        }
+
+        function buildQueryString() {
+            const keyword = document.getElementById("search-keyword").value.trim();
+            const done = document.getElementById("filter-done").value;
+            const sort = document.getElementById("sort-order").value;
+
+            const params = new URLSearchParams();
+
+            if (keyword) {
+                params.append("keyword", keyword);
+            }
+
+            if (done !== "") {
+                params.append("done", done);
+            }
+
+            if (sort) {
+                params.append("sort", sort);
+            }
+
+            const queryString = params.toString();
+            return queryString ? `/todos?${queryString}` : "/todos";
+        }
+
+        async function loadTodos(url = "/todos") {
+            const res = await fetch(url);
+            const todos = await res.json();
+
+            const list = document.getElementById("todo-list");
+            list.innerHTML = "";
+
+            if (!Array.isArray(todos) || todos.length === 0) {
+                list.innerHTML = `<li class="empty-message">조회된 Todo가 없습니다.</li>`;
+                return;
+            }
+
+            todos.forEach(todo => {
+                const li = document.createElement("li");
+                li.className = "todo-item";
+
+                const safeTitle = todo.title.replace(/'/g, "\\'");
+
+                li.innerHTML = `
+                    <div class="todo-left">
+                        <input
+                            type="checkbox"
+                            ${todo.done ? "checked" : ""}
+                            onchange="toggleDone(${todo.id}, this.checked)"
+                        >
+                        <span class="todo-text ${todo.done ? 'completed' : ''}" id="text-${todo.id}">
+                            ${todo.title}
+                        </span>
+                    </div>
+
+                    <div class="todo-buttons">
+                        <button class="edit-btn" onclick="editTodo(${todo.id}, '${safeTitle}', ${todo.done})">수정</button>
+                        <button class="delete-btn" onclick="deleteTodo(${todo.id})">삭제</button>
+                    </div>
+                `;
+
+                list.appendChild(li);
+            });
+        }
+
+        async function createTodo() {
+            const titleInput = document.getElementById("create-title");
+            const title = titleInput.value.trim();
+
+            if (!title) {
+                showMessage("할 일을 입력해주세요.", true);
+                return;
+            }
+
+            const res = await fetch("/todos", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    title: title,
+                    done: false
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showMessage(data.detail || data.message || "생성 실패", true);
+                return;
+            }
+
+            titleInput.value = "";
+            showMessage("Todo가 추가되었습니다.");
+
+            searchTodos();
+        }
+
+        async function deleteTodo(todoId) {
+            const res = await fetch(`/todos/${todoId}`, {
+                method: "DELETE"
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showMessage(data.detail || data.message || "삭제 실패", true);
+                return;
+            }
+
+            showMessage("Todo가 삭제되었습니다.");
+            searchTodos();
+        }
+
+        async function toggleDone(todoId, checked) {
+            const text = document.getElementById(`text-${todoId}`).innerText;
+
+            const res = await fetch(`/todos/${todoId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    title: text,
+                    done: checked
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showMessage(data.detail || data.message || "상태 변경 실패", true);
+                return;
+            }
+
+            searchTodos();
+        }
+
+        async function editTodo(todoId, oldTitle, oldDone) {
+            const newTitle = prompt("수정할 제목을 입력하세요.", oldTitle);
+
+            if (newTitle === null) return;
+
+            const trimmed = newTitle.trim();
+
+            if (!trimmed) {
+                showMessage("제목은 비워둘 수 없습니다.", true);
+                return;
+            }
+
+            const res = await fetch(`/todos/${todoId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    title: trimmed,
+                    done: oldDone
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showMessage(data.detail || data.message || "수정 실패", true);
+                return;
+            }
+
+            showMessage("Todo가 수정되었습니다.");
+            searchTodos();
+        }
+
+        function searchTodos() {
+            const url = buildQueryString();
+            loadTodos(url);
+        }
+
+        function resetSearch() {
+            document.getElementById("search-keyword").value = "";
+            document.getElementById("filter-done").value = "";
+            document.getElementById("sort-order").value = "";
+
+            loadTodos();
+            showMessage("검색 조건이 초기화되었습니다.");
+        }
+
+        document.getElementById("search-keyword").addEventListener("keydown", function(event) {
+            if (event.key === "Enter") {
+                searchTodos();
+            }
+        });
+
+        loadTodos();
+    </script>
+</body>
+</html>
