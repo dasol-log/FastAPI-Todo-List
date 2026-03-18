@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, status  # ✅ status 추가
+from fastapi import APIRouter, HTTPException, status, Query  # ✅ Query 추가
+from typing import Optional  # ✅ Optional 추가
 from app.models.item import Todo, TodoCreate, TodoUpdate
 
 router = APIRouter()
@@ -8,10 +9,46 @@ todos = []
 next_id = 1
 
 
-# 전체 조회
+# 전체 조회 + 검색/필터
 @router.get("/todos", response_model=list[Todo])
-def get_todos():
-    return todos
+def get_todos(
+    keyword: Optional[str] = Query(
+        None,
+        min_length=1,
+        max_length=100,
+        description="제목에서 검색할 키워드"
+    ),  # ✅ Query parameter - 제목 검색
+    done: Optional[bool] = Query(
+        None,
+        description="완료 여부로 필터링 (true/false)"
+    ),  # ✅ Query parameter - 완료 여부 필터
+    sort: Optional[str] = Query( # ✅ 추가: 정렬 기능  
+		None,  
+		description="정렬 방식 (asc 또는 desc)"  
+	)
+):
+    # ✅ 추가: 원본 리스트를 기준으로 필터링 시작
+    result = todos
+
+    # ✅ keyword가 있으면 title에 포함된 Todo만 조회
+    if keyword is not None:
+        result = [todo for todo in result if keyword.lower() in todo.title.lower()]
+
+    # ✅ done 값이 있으면 완료 여부로 필터링
+    if done is not None:
+        result = [todo for todo in result if todo.done == done]
+    
+    # ✅ 추가: 정렬 기능  
+	# id 기준 오름차순 정렬  
+    if sort == "asc":  
+        result = sorted(result, key=lambda todo: todo.id)  
+  
+	# ✅ 추가: 정렬 기능  
+	# id 기준 내림차순 정렬  
+    elif sort == "desc":  
+        result = sorted(result, key=lambda todo: todo.id, reverse=True)
+
+    return result
 
 
 # 상세 조회

@@ -2,9 +2,9 @@ from fastapi import FastAPI
 from app.routes.item import router as item_router
 
 app = FastAPI(
-    title="FastAPI Todo API",                 # ✅ 문서 제목 추가
-    description="Pydantic 검증이 포함된 Todo CRUD API",  # ✅ 문서 설명 추가
-    version="1.0.0"                          # ✅ 버전 추가
+    title="FastAPI Todo API",
+    description="Pydantic 검증과 Path / Query Parameter가 포함된 Todo CRUD API",  # ✅ 수정: 설명 문구 변경
+    version="1.1.0"  # ✅ 수정: 버전 변경
 )
 
 # 라우터 등록
