@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status  # ✅ status 추가
 from app.models.item import Todo, TodoCreate, TodoUpdate
 
 router = APIRouter()
@@ -24,7 +24,8 @@ def get_todo(todo_id: int):
 
 
 # 생성
-@router.post("/todos", response_model=Todo)
+@router.post("/todos", response_model=Todo, status_code=status.HTTP_201_CREATED)  
+# ✅ 생성 성공 시 201 상태코드로 변경
 def create_todo(todo_data: TodoCreate):
     global next_id
 
