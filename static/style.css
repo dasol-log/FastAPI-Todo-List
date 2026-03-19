@@ -178,3 +178,71 @@ h1 {
     border-radius: 12px;
     color: #64748b;
 }
+
+.todo-item span {
+    font-size: 18px;
+    color: #1e293b;
+}
+
+.todo-item span.completed {
+    text-decoration: line-through;
+    color: #94a3b8;
+}
+
+
+#auth-box {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+
+#login-form {
+    display: flex;
+    gap: 10px;
+}
+
+
+#login-form input {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+
+#login-form button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #3b82f6;
+    color: white;
+    cursor: pointer;
+}
+
+
+#login-form button:hover {
+    background: #2563eb;
+}
+
+
+#user-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+
+#user-info button {
+    background: #ef4444;
+    border: none;
+    padding: 8px 12px;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+
+#user-info button:hover {
+    background: #dc2626;
+}
