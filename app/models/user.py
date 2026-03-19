@@ -1,4 +1,4 @@
-# ✅ 추가: User DB 모델
+# User DB 모델
 
 from sqlalchemy import Column, Integer, String
 from app.db.base import Base
