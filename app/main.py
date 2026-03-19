@@ -6,15 +6,15 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from app.routes.item import router as item_router
 
-# ✅ 추가: DB 연결용 import
-from app.database import engine, Base
+# ✅ 수정: settings import
+from app.core.settings import settings
 
-# ✅ 추가: 테이블 모델 import
-from app.models.todo import TodoDB
+# ✅ 수정: init_db 함수 import
+from app.db.init_db import init_db
 
 
-# ✅ 추가: 앱 시작 시 테이블 생성
-Base.metadata.create_all(bind=engine)
+# ✅ 수정: 앱 시작 전에 DB 초기화
+init_db()
 
 app = FastAPI(
     title="FastAPI Todo API",

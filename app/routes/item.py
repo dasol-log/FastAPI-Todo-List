@@ -3,14 +3,17 @@ from typing import Optional
 from fastapi import Header, Cookie, Response
 from sqlalchemy.orm import Session
 
-# ✅ 수정: 기존 Pydantic 모델 import 위치 변경
+# 기존 Pydantic 모델 import 위치 변경
 from app.schemas.todo import Todo, TodoCreate, TodoUpdate
 
-# ✅ 추가: DB 모델 import
+# DB 모델 import
 from app.models.todo import TodoDB
 
-# ✅ 추가: DB 세션 import
-from app.database import get_db
+# 기존 database를 session으로 변경
+# from app.database import get_db
+
+# ✅ 변경: get_db import 위치 변경
+from app.db.session import get_db
 
 router = APIRouter()
 
@@ -44,7 +47,7 @@ def get_todos(
         None,
         description="정렬 방식 (asc 또는 desc)"
     ),
-    db: Session = Depends(get_db)   # ✅ 추가: DB 세션 주입
+    db: Session = Depends(get_db)   # ✅ 유지: 세션 의존성 주입
 ):
     # ✅ 추가: DB 쿼리 시작
     query = db.query(TodoDB)
