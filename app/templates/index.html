@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,10 +8,9 @@
 </head>
 
 <body>
-
     <div class="todo-container">
 
-        <h1>FastAPI Todo</h1>
+        <h1>Todo List</h1>
 
         <!-- 로그인 영역 -->
         <div id="auth-box">
@@ -33,257 +31,213 @@
 
         <hr>
 
-        <!-- Todo 생성 -->
+        <!-- 생성 영역 -->
         <div class="todo-input-box">
             <input type="text" id="create-title" placeholder="할 일을 입력하세요">
             <button onclick="createTodo()">추가</button>
         </div>
 
+        <!-- 검색 / 필터 / 정렬 영역 -->
+        <div class="search-filter-box">
+            <input type="text" id="search-keyword" placeholder="검색어를 입력하세요">
+
+            <select id="filter-done">
+                <option value="">전체 상태</option>
+                <option value="true">완료</option>
+                <option value="false">미완료</option>
+            </select>
+
+            <select id="sort-order">
+                <option value="">기본 정렬</option>
+                <option value="asc">오름차순</option>
+                <option value="desc">내림차순</option>
+            </select>
+
+            <button class="search-btn" onclick="searchTodos()">검색</button>
+            <button class="reset-btn" onclick="resetSearch()">초기화</button>
+        </div>
+
+        <!-- 메시지 -->
         <div id="message-box"></div>
 
+        <!-- 목록 -->
         <ul id="todo-list" class="todo-list"></ul>
-
     </div>
 
-<script>
+    <script>
+    // [1] 로그인 토큰 관리
+    let token = localStorage.getItem("token");
 
-let token = localStorage.getItem("token");
-
-
-function showMessage(message, isError = false) {
-    const box = document.getElementById("message-box");
-    box.innerHTML = `<p class="${isError ? 'error' : 'success'}">${message}</p>`;
-}
-
-
-function setLoggedIn(username) {
-    document.getElementById("login-form").style.display = "none";
-    document.getElementById("user-info").style.display = "block";
-    document.getElementById("welcome-text").innerText = `${username}님 로그인`;
-}
-
-
-function setLoggedOut() {
-    document.getElementById("login-form").style.display = "block";
-    document.getElementById("user-info").style.display = "none";
-}
-
-
-async function signup() {
-
-    const username = document.getElementById("login-username").value;
-    const password = document.getElementById("login-password").value;
-
-    const res = await fetch("/users/signup", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            username: username,
-            password: password
-        })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-        showMessage(data.detail || "회원가입 실패", true);
-        return;
+    function showMessage(message, isError = false) {
+        const box = document.getElementById("message-box");
+        box.innerHTML = `<p class="${isError ? 'error' : 'success'}">${message}</p>`;
     }
 
-    showMessage("회원가입 성공");
-}
-
-
-async function login() {
-
-    const username = document.getElementById("login-username").value;
-    const password = document.getElementById("login-password").value;
-
-    const res = await fetch("/users/login", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            username: username,
-            password: password
-        })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-        showMessage(data.detail || "로그인 실패", true);
-        return;
+    // [2] 로그인 상태 UI 변경
+    function setLoggedIn(username) {
+        document.getElementById("login-form").style.display = "none";
+        document.getElementById("user-info").style.display = "block";
+        document.getElementById("welcome-text").innerText = `${username}님 로그인 중`;
     }
 
-    token = data.access_token;
-
-    localStorage.setItem("token", token);
-
-    setLoggedIn(username);
-
-    loadTodos();
-
-    showMessage("로그인 성공");
-}
-
-
-function logout() {
-
-    localStorage.removeItem("token");
-
-    token = null;
-
-    setLoggedOut();
-
-    document.getElementById("todo-list").innerHTML = "";
-
-    showMessage("로그아웃 되었습니다.");
-}
-
-
-async function loadTodos() {
-
-    if (!token) {
-        return;
+    function setLoggedOut() {
+        document.getElementById("login-form").style.display = "block";
+        document.getElementById("user-info").style.display = "none";
+        document.getElementById("todo-list").innerHTML = "";
     }
 
-    const res = await fetch("/todos", {
-        headers: {
-            "Authorization": "Bearer " + token
-        }
-    });
-
-    const todos = await res.json();
-
-    const list = document.getElementById("todo-list");
-
-    list.innerHTML = "";
-
-    todos.forEach(todo => {
-
-        const li = document.createElement("li");
-
-        li.className = "todo-item";
-
-        li.innerHTML = `
-        <span class="${todo.done ? 'completed' : ''}">
-            ${todo.title}
-        </span>
-
-        <div>
-            <button onclick="toggleDone(${todo.id}, ${todo.done})">완료</button>
-            <button onclick="deleteTodo(${todo.id})">삭제</button>
-        </div>
-        `;
-
-        list.appendChild(li);
-
-    });
-
-}
-
-
-async function createTodo() {
-
-    const title = document.getElementById("create-title").value;
-
-    if (!title) {
-        showMessage("할 일을 입력하세요", true);
-        return;
+    // [3] 회원가입 함수
+    async function signup() {
+        const username = document.getElementById("login-username").value;
+        const password = document.getElementById("login-password").value;
+        const res = await fetch("/users/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) return showMessage(data.detail || "회원가입 실패", true);
+        showMessage("회원가입 성공! 로그인해주세요.");
     }
 
-    const res = await fetch("/todos", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify({
-            title: title,
-            done: false
-        })
-    });
+    // [4] 로그인 함수 (핵심!)
+    async function login() {
+        const username = document.getElementById("login-username").value;
+        const password = document.getElementById("login-password").value;
+        const res = await fetch("/users/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) return showMessage(data.detail || "로그인 실패", true);
 
-    const data = await res.json();
-
-    if (!res.ok) {
-        showMessage(data.detail || "생성 실패", true);
-        return;
-    }
-
-    showMessage("Todo 생성 완료");
-
-    document.getElementById("create-title").value = "";
-
-    loadTodos();
-}
-
-
-async function deleteTodo(id) {
-
-    const res = await fetch(`/todos/${id}`, {
-        method: "DELETE",
-        headers: {
-            "Authorization": "Bearer " + token
-        }
-    });
-
-    if (!res.ok) {
-        showMessage("삭제 실패", true);
-        return;
-    }
-
-    showMessage("삭제 완료");
-
-    loadTodos();
-}
-
-
-async function toggleDone(id, done) {
-
-    const res = await fetch(`/todos/${id}`, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify({
-            done: !done
-        })
-    });
-
-    if (!res.ok) {
-        showMessage("수정 실패", true);
-        return;
-    }
-
-    loadTodos();
-}
-
-
-if (token) {
-
-    fetch("/users/me", {
-        headers: {
-            "Authorization": "Bearer " + token
-        }
-    })
-    .then(res => res.json())
-    .then(data => {
-        setLoggedIn(data.username);
+        token = data.access_token;
+        localStorage.setItem("token", token);
+        setLoggedIn(username);
         loadTodos();
-    })
-    .catch(() => {
-        logout();
-    });
+        showMessage("로그인 성공");
+    }
 
-}
+    function logout() {
+        localStorage.removeItem("token");
+        token = null;
+        setLoggedOut();
+        showMessage("로그아웃 되었습니다.");
+    }
 
+    // [5] 검색 쿼리 빌더
+    function buildQueryString() {
+        const keyword = document.getElementById("search-keyword").value.trim();
+        const done = document.getElementById("filter-done").value;
+        const sort = document.getElementById("sort-order").value;
+        const params = new URLSearchParams();
+        if (keyword) params.append("keyword", keyword);
+        if (done !== "") params.append("done", done);
+        if (sort) params.append("sort", sort);
+        const queryString = params.toString();
+        return queryString ? `/todos?${queryString}` : "/todos";
+    }
+
+    // [6] 할 일 목록 불러오기 (토큰 포함!)
+    async function loadTodos(url = "/todos") {
+        if (!token) return;
+        const res = await fetch(url, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        if (res.status === 401) return logout(); // 토큰 만료시 자동 로그아웃
+
+        const todos = await res.json();
+        const list = document.getElementById("todo-list");
+        list.innerHTML = "";
+
+        if (!Array.isArray(todos) || todos.length === 0) {
+            list.innerHTML = `<li class="empty-message">조회된 Todo가 없습니다.</li>`;
+            return;
+        }
+
+        todos.forEach(todo => {
+            const li = document.createElement("li");
+            li.className = "todo-item";
+            li.innerHTML = `
+                <div class="todo-left">
+                    <input type="checkbox" ${todo.done ? "checked" : ""} onchange="toggleDone(${todo.id}, this.checked)">
+                    <span class="todo-text ${todo.done ? 'completed' : ''}" id="text-${todo.id}">${todo.title}</span>
+                </div>
+                <div class="todo-buttons">
+                    <button class="edit-btn" onclick="editTodo(${todo.id}, '${todo.title.replace(/'/g, "\\'")}', ${todo.done})">수정</button>
+                    <button class="delete-btn" onclick="deleteTodo(${todo.id})">삭제</button>
+                </div>`;
+            list.appendChild(li);
+        });
+    }
+
+    // [7] 생성, 삭제, 수정 함수들 (모두 토큰 추가)
+    async function createTodo() {
+        const titleInput = document.getElementById("create-title");
+        const title = titleInput.value.trim();
+        if (!title) return showMessage("할 일을 입력해주세요.", true);
+
+        const res = await fetch("/todos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ title: title, done: false })
+        });
+        if (res.ok) {
+            titleInput.value = "";
+            searchTodos();
+        }
+    }
+
+    async function deleteTodo(todoId) {
+        await fetch(`/todos/${todoId}`, { 
+            method: "DELETE", 
+            headers: { "Authorization": "Bearer " + token } 
+        });
+        searchTodos();
+    }
+
+    async function toggleDone(todoId, checked) {
+        const text = document.getElementById(`text-${todoId}`).innerText;
+        await fetch(`/todos/${todoId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ title: text, done: checked })
+        });
+        searchTodos();
+    }
+
+    async function editTodo(todoId, oldTitle, oldDone) {
+        const newTitle = prompt("수정할 제목을 입력하세요.", oldTitle);
+        if (!newTitle || !newTitle.trim()) return;
+        await fetch(`/todos/${todoId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ title: newTitle.trim(), done: oldDone })
+        });
+        searchTodos();
+    }
+
+    function searchTodos() { loadTodos(buildQueryString()); }
+    function resetSearch() {
+        document.getElementById("search-keyword").value = "";
+        document.getElementById("filter-done").value = "";
+        document.getElementById("sort-order").value = "";
+        loadTodos();
+    }
+
+    // 초기화: 로그인 여부 확인
+    if (token) {
+        fetch("/users/me", { headers: { "Authorization": "Bearer " + token } })
+        .then(res => res.json())
+        .then(data => {
+            if (data.username) {
+                setLoggedIn(data.username);
+                loadTodos();
+            } else { logout(); }
+        })
+        .catch(() => logout());
+    }
 </script>
-
 </body>
 </html>
