@@ -4,7 +4,8 @@ from app.db.base import Base
 from app.db.session import engine
 
 # ✅ 추가: 모델 import 해야 Base.metadata에 등록됨
-from app.models.todo import TodoDB  # noqa: F401
+from app.models.todo import TodoDB   # noqa: F401
+from app.models.user import UserDB   # noqa: F401
 
 
 def init_db():

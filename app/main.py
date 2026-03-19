@@ -5,15 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from app.routes.item import router as item_router
+from app.routes.user import router as user_router   # ✅ 추가
 
-# ✅ 수정: settings import
 from app.core.settings import settings
-
-# ✅ 수정: init_db 함수 import
 from app.db.init_db import init_db
 
-
-# ✅ 수정: 앱 시작 전에 DB 초기화
+# 앱 시작 전에 DB 초기화
 init_db()
 
 app = FastAPI(
@@ -32,6 +29,7 @@ app.add_middleware(
 
 # 라우터 등록
 app.include_router(item_router)
+app.include_router(user_router)   # ✅ 추가: 회원가입 라우터 등록
 
 # static 폴더 연결
 app.mount("/static", StaticFiles(directory="static"), name="static")
