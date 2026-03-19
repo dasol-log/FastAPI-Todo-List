@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from app.routes.item import router as item_router
-from app.routes.user import router as user_router   # ✅ 추가
+from app.routes.user import router as user_router
 
 from app.core.settings import settings
 from app.db.init_db import init_db
@@ -14,9 +14,9 @@ from app.db.init_db import init_db
 init_db()
 
 app = FastAPI(
-    title="FastAPI Todo API",
+    title=settings.PROJECT_NAME,
     description="FastAPI + SQLAlchemy 기반 Todo CRUD API",
-    version="2.0.0"   # ✅ 수정: DB 버전으로 업데이트
+    version=settings.VERSION
 )
 
 app.add_middleware(
@@ -29,7 +29,7 @@ app.add_middleware(
 
 # 라우터 등록
 app.include_router(item_router)
-app.include_router(user_router)   # ✅ 추가: 회원가입 라우터 등록
+app.include_router(user_router)
 
 # static 폴더 연결
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -37,8 +37,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # 템플릿 폴더 설정
 templates = Jinja2Templates(directory="app/templates")
 
-# HTML 페이지 렌더링
 @app.get("/")
+def home():
+    return {"message": "FastAPI Todo API 실행 중 (인증 기반 Todo 보호 완료)"}
+
+
+@app.get("/page")
 def todo_page(request: Request):
     return templates.TemplateResponse(
         "index.html",

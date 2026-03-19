@@ -5,7 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials # ✅ 추�
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone # ✅ 추가
 import hashlib
-import jwt # ✅ 추가
+import jwt
 
 from app.db.session import get_db
 from app.models.user import UserDB

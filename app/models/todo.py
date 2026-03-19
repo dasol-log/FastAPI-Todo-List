@@ -9,4 +9,5 @@ class TodoDB(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(100), nullable=False, unique=True, index=True)
     done = Column(Boolean, default=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # ✅ 추가: 어떤 사용자의 Todo인지 저장
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
