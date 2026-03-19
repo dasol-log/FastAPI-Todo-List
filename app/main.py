@@ -2,14 +2,24 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles   # ✅ 추가: static 파일 연결
-from fastapi.templating import Jinja2Templates  # ✅ 추가: Jinja2 템플릿
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from app.routes.item import router as item_router
+
+# ✅ 추가: DB 연결용 import
+from app.database import engine, Base
+
+# ✅ 추가: 테이블 모델 import
+from app.models.todo import TodoDB
+
+
+# ✅ 추가: 앱 시작 시 테이블 생성
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="FastAPI Todo API",
-    description="Pydantic 검증과 Path / Query Parameter가 포함된 Todo CRUD API",
-    version="1.4.0"  # ✅ 추가: 버전 수정
+    description="FastAPI + SQLAlchemy 기반 Todo CRUD API",
+    version="2.0.0"   # ✅ 수정: DB 버전으로 업데이트
 )
 
 app.add_middleware(
@@ -23,13 +33,13 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(item_router)
 
-# ✅ 추가: static 폴더 연결
+# static 폴더 연결
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ✅ 추가: 템플릿 폴더 설정
+# 템플릿 폴더 설정
 templates = Jinja2Templates(directory="app/templates")
 
-# ✅ 추가: HTML 페이지 렌더링
+# HTML 페이지 렌더링
 @app.get("/")
 def todo_page(request: Request):
     return templates.TemplateResponse(
