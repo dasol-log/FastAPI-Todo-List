@@ -19,8 +19,11 @@ class Todo(BaseModel):
     id: int
     title: str
     done: bool
-    user_id: int   # ✅ 추가
+    user_id: int
 
-    # ✅ 추가: SQLAlchemy ORM 객체를 Pydantic 응답으로 변환 가능하게 설정
+    # ✅ 추가: 이미지 경로 응답
+    image_path: Optional[str] = None
+
+    # SQLAlchemy ORM 객체를 Pydantic 응답으로 변환 가능하게 설정
     class Config:
         from_attributes = True

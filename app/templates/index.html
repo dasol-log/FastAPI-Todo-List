@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,13 +9,13 @@
 </head>
 
 <body>
+
     <div class="todo-container">
 
-        <h1>Todo List</h1>
+        <h1>FastAPI Todo</h1>
 
         <!-- 로그인 영역 -->
         <div id="auth-box">
-
             <div id="login-form">
                 <input type="text" id="login-username" placeholder="아이디">
                 <input type="password" id="login-password" placeholder="비밀번호">
@@ -22,222 +23,461 @@
                 <button onclick="signup()">회원가입</button>
             </div>
 
-            <div id="user-info" style="display:none;">
+            <div id="user-info" style="display: none;">
                 <span id="welcome-text"></span>
                 <button onclick="logout()">로그아웃</button>
             </div>
-
         </div>
 
         <hr>
 
-        <!-- 생성 영역 -->
+        <!-- Todo 생성 -->
         <div class="todo-input-box">
             <input type="text" id="create-title" placeholder="할 일을 입력하세요">
+            <input type="file" id="create-image" accept="image/*">
             <button onclick="createTodo()">추가</button>
         </div>
 
-        <!-- 검색 / 필터 / 정렬 영역 -->
+        <!-- 검색 / 필터 -->
         <div class="search-filter-box">
-            <input type="text" id="search-keyword" placeholder="검색어를 입력하세요">
-
-            <select id="filter-done">
-                <option value="">전체 상태</option>
-                <option value="true">완료</option>
-                <option value="false">미완료</option>
+            <input type="text" id="search-input" placeholder="검색어를 입력하세요">
+            <select id="filter-status">
+                <option value="all">전체</option>
+                <option value="done">완료</option>
+                <option value="undone">미완료</option>
             </select>
-
             <select id="sort-order">
                 <option value="">기본 정렬</option>
                 <option value="asc">오름차순</option>
                 <option value="desc">내림차순</option>
             </select>
-
             <button class="search-btn" onclick="searchTodos()">검색</button>
             <button class="reset-btn" onclick="resetSearch()">초기화</button>
         </div>
 
-        <!-- 메시지 -->
         <div id="message-box"></div>
 
-        <!-- 목록 -->
         <ul id="todo-list" class="todo-list"></ul>
+
+    <!-- 수정 모달 -->
+    <div id="edit-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; justify-content:center; align-items:center;">
+        <div style="background:white; border-radius:16px; padding:30px; width:360px; display:flex; flex-direction:column; gap:14px;">
+            <h3 style="margin:0; color:#1e293b;">Todo 수정</h3>
+            <input type="text" id="edit-title-input" placeholder="제목" style="padding:12px; border:2px solid #dbeafe; border-radius:10px; font-size:16px; outline:none;">
+            
+            <!-- 현재 이미지 미리보기 -->
+            <div id="edit-image-preview" style="display:none;">
+                <img id="edit-current-image" src="" alt="현재 이미지" style="width:100%; border-radius:10px; border:1px solid #cbd5e1;">
+                <button onclick="submitDeleteImage()" style="width:100%; margin-top:8px; padding:10px; background:#f97316; color:white; border:none; border-radius:10px; font-size:14px; cursor:pointer;">🗑 이미지 삭제</button>
+            </div>
+
+            <!-- 새 이미지 업로드 -->
+            <input type="file" id="edit-image-input" accept="image/*">
+
+            <div style="display:flex; gap:10px;">
+                <button onclick="submitEdit()" style="flex:1; padding:12px; background:#0f766e; color:white; border:none; border-radius:10px; font-size:15px; cursor:pointer;">저장</button>
+                <button onclick="closeEditModal()" style="flex:1; padding:12px; background:#64748b; color:white; border:none; border-radius:10px; font-size:15px; cursor:pointer;">취소</button>
+            </div>
+        </div>
+    </div>
+
+
     </div>
 
     <script>
-    // [1] 로그인 토큰 관리
-    let token = localStorage.getItem("token");
+        let token = localStorage.getItem("token");
+        
+        function buildQueryString() {
+            const keyword = document.getElementById("search-input").value.trim();
+            const done = document.getElementById("filter-status").value;
+            const sort = document.getElementById("sort-order").value;
 
-    function showMessage(message, isError = false) {
-        const box = document.getElementById("message-box");
-        box.innerHTML = `<p class="${isError ? 'error' : 'success'}">${message}</p>`;
-    }
+            const params = new URLSearchParams();
 
-    // [2] 로그인 상태 UI 변경
-    function setLoggedIn(username) {
-        document.getElementById("login-form").style.display = "none";
-        document.getElementById("user-info").style.display = "block";
-        document.getElementById("welcome-text").innerText = `${username}님 로그인 중`;
-    }
+            if (keyword) params.append("keyword", keyword);
+            if (done === "done") params.append("done", "true");
+            if (done === "undone") params.append("done", "false");
+            if (sort) params.append("sort", sort);
 
-    function setLoggedOut() {
-        document.getElementById("login-form").style.display = "block";
-        document.getElementById("user-info").style.display = "none";
-        document.getElementById("todo-list").innerHTML = "";
-    }
-
-    // [3] 회원가입 함수
-    async function signup() {
-        const username = document.getElementById("login-username").value;
-        const password = document.getElementById("login-password").value;
-        const res = await fetch("/users/signup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-        if (!res.ok) return showMessage(data.detail || "회원가입 실패", true);
-        showMessage("회원가입 성공! 로그인해주세요.");
-    }
-
-    // [4] 로그인 함수 (핵심!)
-    async function login() {
-        const username = document.getElementById("login-username").value;
-        const password = document.getElementById("login-password").value;
-        const res = await fetch("/users/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-        if (!res.ok) return showMessage(data.detail || "로그인 실패", true);
-
-        token = data.access_token;
-        localStorage.setItem("token", token);
-        setLoggedIn(username);
-        loadTodos();
-        showMessage("로그인 성공");
-    }
-
-    function logout() {
-        localStorage.removeItem("token");
-        token = null;
-        setLoggedOut();
-        showMessage("로그아웃 되었습니다.");
-    }
-
-    // [5] 검색 쿼리 빌더
-    function buildQueryString() {
-        const keyword = document.getElementById("search-keyword").value.trim();
-        const done = document.getElementById("filter-done").value;
-        const sort = document.getElementById("sort-order").value;
-        const params = new URLSearchParams();
-        if (keyword) params.append("keyword", keyword);
-        if (done !== "") params.append("done", done);
-        if (sort) params.append("sort", sort);
-        const queryString = params.toString();
-        return queryString ? `/todos?${queryString}` : "/todos";
-    }
-
-    // [6] 할 일 목록 불러오기 (토큰 포함!)
-    async function loadTodos(url = "/todos") {
-        if (!token) return;
-        const res = await fetch(url, {
-            headers: { "Authorization": "Bearer " + token }
-        });
-        if (res.status === 401) return logout(); // 토큰 만료시 자동 로그아웃
-
-        const todos = await res.json();
-        const list = document.getElementById("todo-list");
-        list.innerHTML = "";
-
-        if (!Array.isArray(todos) || todos.length === 0) {
-            list.innerHTML = `<li class="empty-message">조회된 Todo가 없습니다.</li>`;
-            return;
+            const queryString = params.toString();
+            return queryString ? `/todos?${queryString}` : "/todos";
         }
 
-        todos.forEach(todo => {
-            const li = document.createElement("li");
-            li.className = "todo-item";
-            li.innerHTML = `
-                <div class="todo-left">
-                    <input type="checkbox" ${todo.done ? "checked" : ""} onchange="toggleDone(${todo.id}, this.checked)">
-                    <span class="todo-text ${todo.done ? 'completed' : ''}" id="text-${todo.id}">${todo.title}</span>
-                </div>
-                <div class="todo-buttons">
-                    <button class="edit-btn" onclick="editTodo(${todo.id}, '${todo.title.replace(/'/g, "\\'")}', ${todo.done})">수정</button>
-                    <button class="delete-btn" onclick="deleteTodo(${todo.id})">삭제</button>
-                </div>`;
-            list.appendChild(li);
-        });
-    }
-
-    // [7] 생성, 삭제, 수정 함수들 (모두 토큰 추가)
-    async function createTodo() {
-        const titleInput = document.getElementById("create-title");
-        const title = titleInput.value.trim();
-        if (!title) return showMessage("할 일을 입력해주세요.", true);
-
-        const res = await fetch("/todos", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-            body: JSON.stringify({ title: title, done: false })
-        });
-        if (res.ok) {
-            titleInput.value = "";
-            searchTodos();
+        function showMessage(message, isError = false) {
+            const box = document.getElementById("message-box");
+            box.innerHTML = `<p class="${isError ? 'error' : 'success'}">${message}</p>`;
         }
-    }
 
-    async function deleteTodo(todoId) {
-        await fetch(`/todos/${todoId}`, { 
-            method: "DELETE", 
-            headers: { "Authorization": "Bearer " + token } 
-        });
-        searchTodos();
-    }
+        function setLoggedIn(username) {
+            document.getElementById("login-form").style.display = "none";
+            document.getElementById("user-info").style.display = "flex";
+            document.getElementById("welcome-text").innerText = `${username}님 로그인`;
+        }
 
-    async function toggleDone(todoId, checked) {
-        const text = document.getElementById(`text-${todoId}`).innerText;
-        await fetch(`/todos/${todoId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-            body: JSON.stringify({ title: text, done: checked })
-        });
-        searchTodos();
-    }
+        function setLoggedOut() {
+            document.getElementById("login-form").style.display = "flex";
+            document.getElementById("user-info").style.display = "none";
+        }
 
-    async function editTodo(todoId, oldTitle, oldDone) {
-        const newTitle = prompt("수정할 제목을 입력하세요.", oldTitle);
-        if (!newTitle || !newTitle.trim()) return;
-        await fetch(`/todos/${todoId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-            body: JSON.stringify({ title: newTitle.trim(), done: oldDone })
-        });
-        searchTodos();
-    }
+        function logout(showMsg = true) {
+            localStorage.removeItem("token");
+            token = null;
+            setLoggedOut();
+            document.getElementById("todo-list").innerHTML = "";
 
-    function searchTodos() { loadTodos(buildQueryString()); }
-    function resetSearch() {
-        document.getElementById("search-keyword").value = "";
-        document.getElementById("filter-done").value = "";
-        document.getElementById("sort-order").value = "";
-        loadTodos();
-    }
+            if (showMsg) {
+                showMessage("로그아웃 되었습니다.");
+            }
+        }
 
-    // 초기화: 로그인 여부 확인
-    if (token) {
-        fetch("/users/me", { headers: { "Authorization": "Bearer " + token } })
-        .then(res => res.json())
-        .then(data => {
-            if (data.username) {
-                setLoggedIn(data.username);
-                loadTodos();
-            } else { logout(); }
-        })
-        .catch(() => logout());
-    }
-</script>
+
+        function searchTodos() {
+            const url = buildQueryString();
+            loadTodos(url);
+        }
+
+        function resetSearch() {
+            document.getElementById("search-input").value = "";
+            document.getElementById("filter-status").value = "all";
+            document.getElementById("sort-order").value = "";
+            loadTodos("/todos");
+        }
+
+        async function signup() {
+            const username = document.getElementById("login-username").value.trim();
+            const password = document.getElementById("login-password").value.trim();
+
+            if (!username || !password) {
+                showMessage("아이디와 비밀번호를 입력하세요.", true);
+                return;
+            }
+
+            const res = await fetch("/users/signup", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showMessage(data.detail || "회원가입 실패", true);
+                return;
+            }
+
+            showMessage("회원가입 성공");
+        }
+
+        async function login() {
+            const username = document.getElementById("login-username").value.trim();
+            const password = document.getElementById("login-password").value.trim();
+
+            if (!username || !password) {
+                showMessage("아이디와 비밀번호를 입력하세요.", true);
+                return;
+            }
+
+            const res = await fetch("/users/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showMessage(data.detail || "로그인 실패", true);
+                return;
+            }
+
+            token = data.access_token;
+            localStorage.setItem("token", token);
+
+            setLoggedIn(username);
+            showMessage("로그인 성공");
+
+            await loadTodos();
+        }
+
+        async function loadTodos(url = "/todos") {
+            if (!token) return;
+
+            const res = await fetch(url, {
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            if (res.status === 401) {
+                logout(false);
+                showMessage("로그인이 만료되었습니다. 다시 로그인해주세요.", true);
+                return;
+            }
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showMessage(data.detail || "목록 조회 실패", true);
+                return;
+            }
+
+            const todos = data;
+            const list = document.getElementById("todo-list");
+            list.innerHTML = "";
+
+            todos.forEach(todo => {
+                const li = document.createElement("li");
+                li.className = "todo-item";
+
+                li.innerHTML = `
+                    <div class="todo-left">
+                        ${todo.image_path ? `<img src="${todo.image_path}" alt="todo image" class="todo-thumb">` : ""}
+                        <span class="${todo.done ? 'completed' : ''}">
+                            ${todo.title}
+                        </span>
+                    </div>
+
+                    <div class="todo-buttons">
+                        <button class="edit-btn" onclick="editTodo(${todo.id}, '${todo.title.replace(/'/g, "\\'")}', ${todo.done}, '${todo.image_path || ''}')">수정</button>
+                        <button class="edit-btn" onclick="toggleDone(${todo.id}, ${todo.done})">완료</button>
+                        <button class="delete-btn" onclick="deleteTodo(${todo.id})">삭제</button>
+                    </div>
+                `;
+
+                list.appendChild(li);
+            });
+        }
+
+        async function createTodo() {
+            if (!token) {
+                showMessage("먼저 로그인해주세요.", true);
+                return;
+            }
+
+            const title = document.getElementById("create-title").value.trim();
+            const imageFile = document.getElementById("create-image").files[0];
+
+            if (!title) {
+                showMessage("할 일을 입력하세요", true);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("title", title);
+            formData.append("done", "false");
+
+            if (imageFile) {
+                formData.append("image", imageFile);
+            }
+
+            const res = await fetch("/todos", {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + token
+                },
+                body: formData
+            });
+
+            if (res.status === 401) {
+                logout(false);
+                showMessage("로그인이 만료되었습니다. 다시 로그인해주세요.", true);
+                return;
+            }
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                showMessage(data.detail || "생성 실패", true);
+                return;
+            }
+
+            showMessage("Todo 생성 완료");
+            document.getElementById("create-title").value = "";
+            document.getElementById("create-image").value = "";
+
+            await loadTodos();
+        }
+
+        let editingTodoId = null;
+        let editingTodoDone = null;
+        let editingTodoImagePath = null;
+
+        function editTodo(id, oldTitle, oldDone, imagePath) {
+            editingTodoId = id;
+            editingTodoDone = oldDone;
+            editingTodoImagePath = imagePath;
+
+            document.getElementById("edit-title-input").value = oldTitle;
+            document.getElementById("edit-image-input").value = "";
+
+            const preview = document.getElementById("edit-image-preview");
+            const currentImg = document.getElementById("edit-current-image");
+
+            if (imagePath) {
+                currentImg.src = imagePath;
+                preview.style.display = "block";
+            } else {
+                preview.style.display = "none";
+            }
+
+            document.getElementById("edit-modal").style.display = "flex";
+        }
+
+        function closeEditModal() {
+            document.getElementById("edit-modal").style.display = "none";
+            editingTodoId = null;
+            editingTodoDone = null;
+        }
+
+        async function submitEdit() {
+            const trimmed = document.getElementById("edit-title-input").value.trim();
+            const imageFile = document.getElementById("edit-image-input").files[0];
+
+            if (!trimmed) {
+                showMessage("제목은 비워둘 수 없습니다.", true);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("title", trimmed);
+            formData.append("done", editingTodoDone.toString());
+
+            if (imageFile) {
+                formData.append("image", imageFile);
+            }
+
+            if (editingTodoImagePath === null) {
+                formData.append("delete_image", "true");
+            }
+
+            const res = await fetch(`/todos/${editingTodoId}`, {
+                method: "PUT",
+                headers: { "Authorization": "Bearer " + token },
+                body: formData
+            });
+
+            if (res.status === 401) {
+                logout(false);
+                showMessage("로그인이 만료되었습니다. 다시 로그인해주세요.", true);
+                return;
+            }
+
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                showMessage(data.detail || "수정 실패", true);
+                return;
+            }
+
+            showMessage("수정 완료");
+            closeEditModal();
+            await loadTodos();
+        }
+
+        async function deleteTodo(id) {
+            if (!token) {
+                showMessage("먼저 로그인해주세요.", true);
+                return;
+            }
+
+            const res = await fetch(`/todos/${id}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            if (res.status === 401) {
+                logout(false);
+                showMessage("로그인이 만료되었습니다. 다시 로그인해주세요.", true);
+                return;
+            }
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                showMessage(data.detail || "삭제 실패", true);
+                return;
+            }
+
+            showMessage("삭제 완료");
+            await loadTodos();
+        }
+
+        async function toggleDone(id, done) {
+            if (!token) {
+                showMessage("먼저 로그인해주세요.", true);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("done", (!done).toString());
+
+            const res = await fetch(`/todos/${id}`, {
+                method: "PUT",
+                headers: {
+                    "Authorization": "Bearer " + token
+                },
+                body: formData
+            });
+
+            if (res.status === 401) {
+                logout(false);
+                showMessage("로그인이 만료되었습니다. 다시 로그인해주세요.", true);
+                return;
+            }
+
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                showMessage(data.detail || "수정 실패", true);
+                return;
+            }
+
+            showMessage("수정 완료");
+            await loadTodos();
+        }
+
+        async function checkLogin() {
+            if (!token) {
+                return;
+            }
+
+            const res = await fetch("/users/me", {
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            if (!res.ok) {
+                logout(false);
+                return;
+            }
+
+            const data = await res.json();
+            setLoggedIn(data.username);
+            await loadTodos();
+        }
+
+        // 이미지 삭제 버튼 → 화면에서만 숨김
+        function submitDeleteImage() {
+            editingTodoImagePath = null;
+            document.getElementById("edit-image-preview").style.display = "none";
+            document.getElementById("edit-current-image").src = "";
+        }
+
+        checkLogin();
+    </script>
+
 </body>
+
 </html>

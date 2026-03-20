@@ -29,6 +29,7 @@ h1 {
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
+    align-items: center;
     flex-wrap: wrap;
 }
 
@@ -245,4 +246,34 @@ h1 {
 
 #user-info button:hover {
     background: #dc2626;
+}
+
+.todo-input-box input[type="text"] {
+    flex: 1;
+    padding: 14px;
+    font-size: 16px;
+    border: 2px solid #dbeafe;
+    border-radius: 10px;
+    outline: none;
+}
+
+.todo-input-box input[type="file"] {
+    padding: 8px;
+    font-size: 14px;
+}
+
+.todo-thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+}
+
+.image-delete-btn {
+    background: #f97316;
+}
+
+.image-delete-btn:hover {
+    background: #ea580c;
 }

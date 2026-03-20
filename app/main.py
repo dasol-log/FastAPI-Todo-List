@@ -4,11 +4,16 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+import os  # ✅ 추가
+
 from app.routes.item import router as item_router
 from app.routes.user import router as user_router
 
 from app.core.settings import settings
 from app.db.init_db import init_db
+
+# ✅ 추가: media 폴더 자동 생성
+os.makedirs(settings.TODO_UPLOAD_DIR, exist_ok=True)
 
 # 앱 시작 전에 DB 초기화
 init_db()
@@ -34,12 +39,15 @@ app.include_router(user_router)
 # static 폴더 연결
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# ✅ 추가: 업로드 파일 접근용 mount
+app.mount("/media", StaticFiles(directory="media"), name="media")
+
 # 템플릿 폴더 설정
 templates = Jinja2Templates(directory="app/templates")
 
 @app.get("/")
 def home():
-    return {"message": "FastAPI Todo API 실행 중 (인증 기반 Todo 보호 완료)"}
+    return {"message": "FastAPI Todo API 실행 중 (이미지 업로드 기능 추가 완료)"}
 
 
 @app.get("/page")
